@@ -1,0 +1,10 @@
+#!/bin/bash
+#
+#BSUB -J fcn
+#BSUB -n 10
+#BSUB -q gpu
+#BSUB -m fit07
+#BSUB -e %J.err
+#BSUB -o %J.out
+module load cuda
+python3 train_fcn8s_atonce.py  -g 0
