@@ -181,6 +181,10 @@ class FCN8sAtOnce(FCN8s):
         self.save_stage_2 = None
         self.save_stage_3 = None
 
+        self.clock_1 = 0
+        self.clock_2 = 0
+        self.clock_3 = 0
+
     @classmethod
     def download(cls):
         return fcn.data.cached_download(
@@ -189,7 +193,7 @@ class FCN8sAtOnce(FCN8s):
             md5='bfed4437e941fef58932891217fe6464',
         )
 
-    def pipeline_2_stage(self, x, frame0 = None, frame1 = None, method = 'Pipe', rate = (1, 1, 1), threshold = 0.0):
+    def pipeline_2_stage(self, x, frame0 = None, method = 'Pipe', rate = (1, 1, 1), threshold = 0.0):
         def pipe1(x):
             self.save_stage_1 = self.stage1(x)
             self.save_stage_2 = self.stage2(self.save_stage_1)
@@ -197,10 +201,13 @@ class FCN8sAtOnce(FCN8s):
         def pipe2(x):
             self.save_stage_3 = self.stage3(x)
 
-        if frame1 is not None:
+        if frame0 is not None:
+            self.clock_1 = 0
+            self.clock_2 = 0
+
             pipe1(frame0)
             pipe2(self.save_stage_2)
-            pipe1(frame1)
+            
             return
 
         p1 = threading.Thread(target = pipe1, args = (x, ))
@@ -214,7 +221,7 @@ class FCN8sAtOnce(FCN8s):
 
         return self.fuse_score(x, self.save_stage_1, self.save_stage_2, self.save_stage_3)
 
-    def pipeline_3_stage(self, x, frame0 = None, frame1 = None, frame2 = None, method = 'Pipe', rate = (1, 1, 1), threshold = 0.0):
+    def pipeline_3_stage(self, x, frame0 = None, frame1 = None, method = 'Pipe', rate = (1, 1, 1), threshold = 0.0):
         def pipe1(x):
             self.save_stage_1 = self.stage1(x)
             
@@ -225,6 +232,8 @@ class FCN8sAtOnce(FCN8s):
             self.save_stage_3 = self.stage3(x)
 
         if frame1 is not None:
+            self.clock_1, self.clock_2, self.clock_3 = 0, 0, 0
+
             pipe1(frame0)
             pipe2(self.save_stage_1)
             pipe3(self.save_stage_2)
@@ -232,20 +241,29 @@ class FCN8sAtOnce(FCN8s):
             pipe1(frame1)
             pipe2(self.save_stage_1)
             
-            pipe1(frame2)
-            
             return
+
+        self.clock_1 += 1
+        self.clock_2 += 1
+        self.clock_3 += 1
+
         p1 = threading.Thread(target = pipe1, args = (x, ))
         p2 = threading.Thread(target = pipe2, args = (self.save_stage_1, ))
         p3 = threading.Thread(target = pipe3, args = (self.save_stage_2, ))
 
-        p1.start()
-        p2.start()
-        p3.start()
+        if self.clock_1 % rate[0] == 0:
+            p1.start()
+        if self.clock_2 % rate[1] == 0:
+            p2.start()
+        if self.clock_3 % rate[2] == 0:
+            p3.start()
 
-        p1.join()
-        p2.join()
-        p3.join()
+        if self.clock_1 % rate[0] == 0:
+            p1.join()
+        if self.clock_2 % rate[1] == 0:
+            p2.join()
+        if self.clock_3 % rate[2] == 0:
+            p3.join()
 
         return self.fuse_score(x, self.save_stage_1, self.save_stage_2, self.save_stage_3)
         

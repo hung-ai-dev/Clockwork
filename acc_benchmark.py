@@ -48,18 +48,19 @@ PV = pascal('/home/hungnd/Dataset/VOC/VOCdevkit/VOC2011')
 valset = PV.get_dset()
 
 
-def score_translations(model_name, model, shift, num_frames):
+def score_translations(model_name, model, rate = (1, 1, 1),shift = 16, num_frames = 6):
     label_trues, label_preds = [], []
 
     offset = 0
 
     if 'Pipe2' in model_name:
-        offset = 2
+        offset = 1
     elif 'Pipe3' in model_name:
-        offset = 3
+        offset = 2
 
     cnt = -1
     for idx in valset:
+        print(idx)
 #        cnt += 1
 #        if cnt == 10:
 #           break
@@ -72,16 +73,14 @@ def score_translations(model_name, model, shift, num_frames):
 
         frame0, label0 = transform(im_frames[0], label_frames[0])
         frame1, label1 = transform(im_frames[1], label_frames[1])
-        frame2, label2 = transform(im_frames[2], label_frames[2])
         
         frame0 = Variable(frame0.cuda())
         frame1 = Variable(frame1.cuda())
-        frame2 = Variable(frame2.cuda())
 
         if 'Pipe2' in model_name:
-            model.pipeline_2_stage(x = None, frame0 = frame0, frame1 = frame1)
+            model.pipeline_2_stage(x = None, frame0 = frame0)
         if 'Pipe3' in model_name:
-            model.pipeline_3_stage(x = None, frame0 = frame0, frame1 = frame1, frame2 = frame2)
+            model.pipeline_3_stage(x = None, frame0 = frame0, frame1 = frame1)
 
         im_frames, label_frames = im_frames[offset:], label_frames[offset:]
 
@@ -95,7 +94,7 @@ def score_translations(model_name, model, shift, num_frames):
             elif 'Pipe2' in model_name:
                 score = model.pipeline_2_stage(data)
             elif 'Pipe3' in model_name:
-                score = model.pipeline_3_stage(data)
+                score = model.pipeline_3_stage(data, rate=rate)
 
             lbl_pred = score.data.max(1)[1].cpu().numpy()[:, :, :]
             lbl_true = target.data.cpu()
@@ -112,5 +111,11 @@ def score_translations(model_name, model, shift, num_frames):
     f.write('\nMeanIoU' + str(mean_iu))
     f.write('\nFwavacc' + str(fwavacc) + '\n')
 
-score_translations('Oracle', model, 16, 6)
-score_translations('Oracle', model, 32, 6)
+if __name__ == '__main__':
+    score_translations('Pipe3_Skip', model, (2, 2, 2), 16, 6)
+    score_translations('Pipe3_Exp', model, (1, 2, 4), 16, 6)
+    score_translations('Pipe3_Alt', model, (1, 1, 2), 16, 6)
+
+    score_translations('Pipe3_Skip', model, (2, 2, 2), 32, 6)
+    score_translations('Pipe3_Exp', model, (1, 2, 4), 32, 6)
+    score_translations('Pipe3_Alt', model, (1, 1, 2), 32, 6)

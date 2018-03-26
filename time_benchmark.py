@@ -47,6 +47,7 @@ def timing(model_name):
         total_time += end- start
     print(model_name, total_time / 100)
 
-timing('Oracle')
-timing('Pipe3')
-timing('Pipe2')
+if __name__ == '__main__':
+    timing('Oracle')
+    timing('Pipe3')
+    timing('Pipe2')
