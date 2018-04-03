@@ -258,7 +258,7 @@ class FCN8sAtOnce(FCN8s):
         pool4 = self.stage2(pool3)
         
         h = self.score_pool4(pool4 * 0.01)
-        if (self.prev_scores is None) or (self.scoremap_diff(self.prev_scores, h)):
+        if (self.prev_scores is None) or (self.scoremap_diff(self.prev_scores, h) >= thresh):
             self.prev_scores = h
             self.prev_upscore2 = self.upscore2(self.score_fr(self.stage3(pool4)))
         upscore2 = self.prev_upscore2
