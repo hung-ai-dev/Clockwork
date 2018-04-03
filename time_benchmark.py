@@ -23,7 +23,8 @@ def timing(model_name):
     
     x = torch.FloatTensor(1, 3, 512, 512).cuda()
     x = Variable(x)
-
+    y = torch.FloatTensor(1, 3, 512, 512).cuda()
+    y = Variable(y)
     model.pipeline_3_stage(x, x, x)
 
     for i in range(100):
@@ -35,9 +36,10 @@ def timing(model_name):
             score = model.pipeline_2_stage(x)
         elif 'Pipe3' in model_name:
             score = model.pipeline_3_stage(x)
+        elif 'Adaptive' in model_name:
+            score = model.adaptive_clockwork(0.25, y)
         else:
             score = model.forward(x)
-
         pred = score.data.max(1)[1].cpu().numpy()[:, :, :]
         t1 = time.time()
         total_time += t1 - t0
@@ -48,3 +50,4 @@ if __name__ == '__main__':
     timing('Oracle')
     timing('Pipe2')
     timing('Pipe3')
+    timing('Adaptive')
