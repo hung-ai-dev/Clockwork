@@ -44,7 +44,7 @@ def transform(img, lbl, img_size = (512, 512)):
     
     return img.unsqueeze_(0), lbl.unsqueeze_(0)
 
-PV = pascal('/home/hungnd/Dataset/VOC/VOCdevkit/VOC2011')
+PV = pascal('/home/vietdv/VOC/VOCdevkit/VOC2011')
 valset = PV.get_dset()
 
 
@@ -57,11 +57,13 @@ def score_translations(model_name, model, rate = (1, 1, 1), shift = 16, num_fram
         offset = 1
     elif 'Pipe3' in model_name:
         offset = 2
-
+    elif 'adaptive' in model_name:
+        offset = 0
     cnt = -1
+    thresh = 0.25
     for idx in valset:
         print(idx)
-        
+        model.prev_scores = None
         sys.stdout.flush()
         im, label = PV.load_image(idx), PV.load_label(idx)
         im_t, label_t = PV.make_translated_frames(im, label, shift=16, num_frames=6)
@@ -91,6 +93,8 @@ def score_translations(model_name, model, rate = (1, 1, 1), shift = 16, num_fram
                 score = model.pipeline_2_stage(data)
             elif 'Pipe3' in model_name:
                 score = model.pipeline_3_stage(data, rate=rate)
+            elif 'Adaptive' in model_name:
+                score = model.adaptive_clockwork(thresh, data)
 
             lbl_pred = score.data.max(1)[1].cpu().numpy()[:, :, :]
             lbl_true = target.data.cpu()
@@ -113,3 +117,9 @@ if __name__ == '__main__':
 
     score_translations('Pipe3', model, (1, 1, 1), 16, 6)
     score_translations('Pipe3', model, (1, 1, 1), 32, 6)
+
+    score_translations('Pipe3', model, (1, 1, 1), 16, 6)
+    score_translations('Pipe3', model, (1, 1, 1), 32, 6)
+
+    score_translations('Adaptive', model, (1, 1, 1), 16, 6)
+    score_translations('Adaptive', model, (1, 1, 1), 32, 6)
