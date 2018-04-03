@@ -13,41 +13,38 @@ import sys
 import torchfcn
 from torchfcn.datasets.voc_valid import pascal
 import time
-from concurrent.futures import ThreadPoolExecutor
 
-import torch
-torch.multiprocessing.set_start_method("spawn")
-
-# mp = _mp.get_context('spawn')
 model = torchfcn.models.FCN8sAtOnce(n_class=21).cuda()
 
 def timing(model_name):
     total_time = 0
 
     model.share_memory()
-
+    
     x = torch.FloatTensor(1, 3, 512, 512).cuda()
     x = Variable(x)
-    model.pipeline_2_stage(x, x, x)
+
+    model.pipeline_3_stage(x, x, x)
 
     for i in range(100):
         x = torch.FloatTensor(1, 3, 512, 512).cuda()
         x = Variable(x)
-
-        start = time.time()
+    
+        t0 = time.time()
         if 'Pipe2' in model_name:
-            model.pipeline_2_stage(x)
+            score = model.pipeline_2_stage(x)
         elif 'Pipe3' in model_name:
-            model.pipeline_3_stage(x)
+            score = model.pipeline_3_stage(x)
         else:
-            model.forward(x)
-        torch.cuda.synchronize()
-        end = time.time()
+            score = model.forward(x)
 
-        total_time += end- start
+        pred = score.data.max(1)[1].cpu().numpy()[:, :, :]
+        t1 = time.time()
+        total_time += t1 - t0
+    
     print(model_name, total_time / 100)
 
 if __name__ == '__main__':
     timing('Oracle')
-    timing('Pipe3')
     timing('Pipe2')
+    timing('Pipe3')

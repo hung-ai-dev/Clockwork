@@ -48,7 +48,7 @@ PV = pascal('/home/hungnd/Dataset/VOC/VOCdevkit/VOC2011')
 valset = PV.get_dset()
 
 
-def score_translations(model_name, model, rate = (1, 1, 1),shift = 16, num_frames = 6):
+def score_translations(model_name, model, rate = (1, 1, 1), shift = 16, num_frames = 6):
     label_trues, label_preds = [], []
 
     offset = 0
@@ -61,9 +61,7 @@ def score_translations(model_name, model, rate = (1, 1, 1),shift = 16, num_frame
     cnt = -1
     for idx in valset:
         print(idx)
-#        cnt += 1
-#        if cnt == 10:
-#           break
+        
         sys.stdout.flush()
         im, label = PV.load_image(idx), PV.load_label(idx)
         im_t, label_t = PV.make_translated_frames(im, label, shift=16, num_frames=6)
@@ -71,21 +69,19 @@ def score_translations(model_name, model, rate = (1, 1, 1),shift = 16, num_frame
         im, label = PV.load_image(idx), PV.load_label(idx)
         im_frames, label_frames = PV.make_translated_frames(im, label, shift=shift, num_frames=num_frames)
 
-        frame0, label0 = transform(im_frames[0], label_frames[0])
-        frame1, label1 = transform(im_frames[1], label_frames[1])
-        
-        frame0 = Variable(frame0.cuda())
-        frame1 = Variable(frame1.cuda())
+        for i in range(offset, num_frames):
+            frame0, label0 = transform(im_frames[i - 2], label_frames[i - 2])
+            frame1, label1 = transform(im_frames[i - 1], label_frames[i - 1])
+            
+            frame0 = Variable(frame0.cuda())
+            frame1 = Variable(frame1.cuda())
 
-        if 'Pipe2' in model_name:
-            model.pipeline_2_stage(x = None, frame0 = frame0)
-        if 'Pipe3' in model_name:
-            model.pipeline_3_stage(x = None, frame0 = frame0, frame1 = frame1)
+            if 'Pipe2' in model_name:
+                model.pipeline_2_stage(x = None, frame0 = frame1)
+            if 'Pipe3' in model_name:
+                model.pipeline_3_stage(x = None, frame0 = frame0, frame1 = frame1)
 
-        im_frames, label_frames = im_frames[offset:], label_frames[offset:]
-
-        for data, annot in zip(im_frames, label_frames):
-            data, target = transform(data, annot)
+            data, target = transform(im_frames[i], label_frames[i])
             data, target = data.cuda(), target.cuda()
             data, target = Variable(data, volatile=True), Variable(target)
 
@@ -100,22 +96,20 @@ def score_translations(model_name, model, rate = (1, 1, 1),shift = 16, num_frame
             lbl_true = target.data.cpu()
 
             label_preds.append(lbl_pred)
-            label_trues.append(annot)
+            label_trues.append(label_frames[i])
 
     acc, acc_cls, mean_iu, fwavacc = torchfcn.utils.label_accuracy_score(label_trues, label_preds, n_class=21)
     
     file_name = model_name + '_' + str(shift) + '.txt'
     f = open(file_name, 'w')
-    f.write('\nAcc' + str(acc))
-    f.write('\nAcc_cls' + str(acc_cls))
-    f.write('\nMeanIoU' + str(mean_iu))
-    f.write('\nFwavacc' + str(fwavacc) + '\n')
+    f.write('\nAcc: ' + str(acc))
+    f.write('\nAcc_cls: ' + str(acc_cls))
+    f.write('\nMeanIoU: ' + str(mean_iu))
+    f.write('\nFwavacc: ' + str(fwavacc) + '\n')
 
 if __name__ == '__main__':
-    score_translations('Pipe3_Skip', model, (2, 2, 2), 16, 6)
-    score_translations('Pipe3_Exp', model, (1, 2, 4), 16, 6)
-    score_translations('Pipe3_Alt', model, (1, 1, 2), 16, 6)
+    score_translations('Pipe2', model, (1, 1, 1), 16, 6)
+    score_translations('Pipe2', model, (1, 1, 1), 32, 6)
 
-    score_translations('Pipe3_Skip', model, (2, 2, 2), 32, 6)
-    score_translations('Pipe3_Exp', model, (1, 2, 4), 32, 6)
-    score_translations('Pipe3_Alt', model, (1, 1, 2), 32, 6)
+    score_translations('Pipe3', model, (1, 1, 1), 16, 6)
+    score_translations('Pipe3', model, (1, 1, 1), 32, 6)

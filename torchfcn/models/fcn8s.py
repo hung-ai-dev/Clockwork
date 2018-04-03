@@ -1,3 +1,5 @@
+import torch
+import time
 import os.path as osp
 import threading
 import fcn
@@ -210,14 +212,7 @@ class FCN8sAtOnce(FCN8s):
             
             return
 
-        p1 = threading.Thread(target = pipe1, args = (x, ))
-        p2 = threading.Thread(target = pipe2, args = (self.save_stage_2, ))
-
-        p1.start()
-        p2.start()
-
-        p1.join()
-        p2.join()
+        pipe1(x)
 
         return self.fuse_score(x, self.save_stage_1, self.save_stage_2, self.save_stage_3)
 
@@ -247,23 +242,7 @@ class FCN8sAtOnce(FCN8s):
         self.clock_2 += 1
         self.clock_3 += 1
 
-        p1 = threading.Thread(target = pipe1, args = (x, ))
-        p2 = threading.Thread(target = pipe2, args = (self.save_stage_1, ))
-        p3 = threading.Thread(target = pipe3, args = (self.save_stage_2, ))
-
-        if self.clock_1 % rate[0] == 0:
-            p1.start()
-        if self.clock_2 % rate[1] == 0:
-            p2.start()
-        if self.clock_3 % rate[2] == 0:
-            p3.start()
-
-        if self.clock_1 % rate[0] == 0:
-            p1.join()
-        if self.clock_2 % rate[1] == 0:
-            p2.join()
-        if self.clock_3 % rate[2] == 0:
-            p3.join()
+        pipe1(x)
 
         return self.fuse_score(x, self.save_stage_1, self.save_stage_2, self.save_stage_3)
         
