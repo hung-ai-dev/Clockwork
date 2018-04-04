@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+#BSUB -J convert_data
+#BSUB -n 35
+#BSUB -m fit06
+#BSUB -e %J.err
+#BSUB -o %J.out
+
+python3 pascal_shift_clockwork.py

@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+#BSUB -J benchmark
+#BSUB -n 1
+#BSUB -q gpu
+#BSUB -m fit06
+#BSUB -e %J.err
+#BSUB -o %J.out
+module load cuda
+python3 acc_benchmark.py
+
