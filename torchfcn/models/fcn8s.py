@@ -173,6 +173,8 @@ class FCN8sAtOnce(FCN8s):
         self.save_stage_1 = None
         self.save_stage_2 = None
         self.save_stage_3 = None
+        self.prev_scores = None
+        self.prev_upscore2 = None
 
         self.clock_1 = 0
         self.clock_2 = 0
@@ -229,7 +231,40 @@ class FCN8sAtOnce(FCN8s):
 
         return self.fuse_score(x, self.save_stage_1, self.save_stage_2, self.save_stage_3)
         
-    
+    def scoremap_diff(self, prev_scores, scores):
+        prev_seg = prev_scores.data.max(1)[1]
+        curr_seg = scores.data.max(1)[1]
+        return (prev_seg != curr_seg).type(torch.FloatTensor).mean()
+
+    def adaptive_clockwork(self, thresh, frame):
+        pool3 = self.stage1(frame)
+        pool4 = self.stage2(pool3)
+        
+        h = self.score_pool4(pool4 * 0.01)
+        if (self.prev_scores is None) or (self.scoremap_diff(self.prev_scores, h) >= thresh):
+            self.prev_scores = h
+            self.prev_upscore2 = self.upscore2(self.score_fr(self.stage3(pool4)))
+        upscore2 = self.prev_upscore2
+        h = h[:, :, 5:5 + upscore2.size()[2], 5:5 + upscore2.size()[3]]
+        score_pool4c = h  # 1/16
+
+        h = upscore2 + score_pool4c  # 1/16
+        h = self.upscore_pool4(h)
+        upscore_pool4 = h  # 1/8
+
+        h = self.score_pool3(pool3 * 0.0001)  # XXX: scaling to train at once
+        h = h[:, :,
+              9:9 + upscore_pool4.size()[2],
+              9:9 + upscore_pool4.size()[3]]
+        score_pool3c = h  # 1/8
+
+        h = upscore_pool4 + score_pool3c  # 1/8
+
+        h = self.upscore8(h)
+        h = h[:, :, 31:31 + frame.size()[2], 31:31 + frame.size()[3]].contiguous()
+
+        return h
+
     def fuse_score(self, x, pool3, pool4, fc7):
         h = self.score_fr(fc7)
         h = self.upscore2(h)

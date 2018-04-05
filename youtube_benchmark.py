@@ -45,6 +45,9 @@ def transform(img, lbl, img_size = (512, 512)):
 
 def benchmark(model_name, thresh):
     offset = 10
+    skip = 2
+    if 'Pipe3' in model_name:
+        skip = 3
 
     label_trues, label_preds = [], []
     total_time = 0
@@ -55,7 +58,7 @@ def benchmark(model_name, thresh):
     f_0 = 0
 
     for (class_, vid, shot) in inputs:
-        # model.prev_scores = None
+        model.prev_scores = None
 
         for f in YT.list_label_frames(class_, vid, shot):
             print(class_, vid, shot, f)
@@ -64,7 +67,7 @@ def benchmark(model_name, thresh):
             f_1 = f_0
             f_0 = f
 
-            if f < 2*offset + 1:
+            if f < skip*offset + 1:
                 continue
 
             if 'Pipe2' in model_name:
@@ -105,7 +108,7 @@ def benchmark(model_name, thresh):
             elif 'Pipe3' in model_name:
                 score = model.pipeline_3_stage(img)
             elif 'Adaptive' in model_name:
-                score = model.adaptive_clockwork(thresh, data)
+                score = model.adaptive_clockwork(thresh, img)
             out = score.data.max(1)[1].cpu().numpy()[:, :, :]
 
             t1 = time.time()
@@ -129,10 +132,10 @@ def benchmark(model_name, thresh):
     f.write('\nFwavacc ' + str(fwavacc) + '\n')
 
 if __name__ == '__main__':
-    benchmark('Oracle', 0)
-    benchmark('Pipe2', 0)
     benchmark('Pipe3', 0)
 
-    # thresh = [0.15, 0.25, 0.35, 0.45]
-    # for th in thresh:
-    #     benchmark('Adaptive_' + str(th), th)
+    thresh = [0.15, 0.25, 0.35, 0.45]
+    for th in thresh:
+        benchmark('Adaptive_' + str(th), th)
+
+    benchmark('Oracle', 0)    
